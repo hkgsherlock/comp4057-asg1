@@ -1,0 +1,3 @@
+[submodule "etc/Markdown-CSS"]
+	path = etc/Markdown-CSS
+	url = https://github.com/simonlc/Markdown-CSS.git

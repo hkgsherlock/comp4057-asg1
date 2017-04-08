@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Readme</title>
+<link rel="stylesheet" type="text/css" href="etc/markdown.css" />
+</head>
+<body>
+<h1 id="comp4057programmingassignment1biblewordcount">COMP4057 Programming Assignment 1 - Bible Word Count</h1>
+
+<p><em>by Poon Chun Yiu (<code>15200256</code>)</em></p>
+
+<p>9 April 2017</p>
+
+<h2 id="objectives">Objectives</h2>
+
+<p>To find the most frequent words (but not stopwords) in bible.</p>
+
+<h2 id="developmentandcompilerequirement">Development and Compile Requirement</h2>
+
+<ul>
+    <li>Software side
+
+
+        <ul>
+            <li><a href="http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html">Java JDK</a> >= 1.8(.0.25)</li>
+
+            <li><a href="https://maven.apache.org/download.cgi">Maven</a> >= 3.3.3</li></ul>
+    </li>
+
+    <li>Maven side
+
+
+        <ul>
+            <li><code>org.apache.hadoop:hadoop-common</code> >= 2.7.3</li>
+
+            <li><code>org.apache.hadoop:hadoop-mapreduce-client-core</code> >= 2.7.3</li></ul>
+    </li>
+</ul>
+
+<h2 id="make">Make</h2>
+
+<h3 id="build">Build</h3>
+
+<ol>
+    <li><code>mvn clean</code></li>
+
+    <li><code>mvn package -Dmaven.test.skip=true</code></li>
+
+    <li>The newest <code>BibleMostUsedWords.jar</code> will be exist on <code>target/</code>.</li>
+</ol>
+
+<h3 id="run">Run</h3>
+
+<h4 id="local">Local</h4>
+
+<pre><code>scp target/BibleMostUsedWords.jar etc/bible.txt etc/stopwords.txt {SID}@faith.comp.hkbu.edu.hk:~
+ssh {SID}@faith.comp.hkbu.edu.hk
+</code></pre>
+
+<h4 id="faithcomphkbueduhk"><code>faith.comp.hkbu.edu.hk</code></h4>
+
+<pre><code>cd ~
+scp BibleMostUsedWords.jar bible.txt stopwords.txt csr42:~
+ssh csr42
+</code></pre>
+
+<h4 id="csr42"><code>csr42</code></h4>
+
+<pre><code>cd ~
+rm -rf ./src-asg1
+mkdir ./src-asg1
+mv BibleMostUsedWords.jar bible.txt stopwords.txt ./src-asg1/
+cd ./src-asg1
+jar xvf BibleMostUsedWords.jar
+export HADOOP_CLASSPATH=$HADOOP_CLASSPATH:$(pwd)/*
+hadoop fs -rm -r -f ~/input_txt_bible ~/temp_txt_bible ~/output_txt_bible
+hadoop fs -mkdir input_txt_bible
+hadoop fs -put bible.txt stopwords.txt ~/input_txt_bible/
+hadoop jar BibleMostUsedWords.jar org/e5200256/hadoop/bible_most_used_words/Driver ~/input_txt_bible ~/temp_txt_bible ~/output_txt_bible
+hadoop fs -cat ~/output_txt_bible/*
+
+# optional
+hadoop fs -rm -r -f ~/input_txt_bible ~/temp_txt_bible ~/output_txt_bible
+
+# remember to `exit` to prevent from being banned, if you know what I mean
+exit
+</code></pre>
+
+<h4 id="faithcomphkbueduhk-1"><code>faith.comp.hkbu.edu.hk</code></h4>
+
+<pre><code>exit
+</code></pre>
+</body>
+</html>

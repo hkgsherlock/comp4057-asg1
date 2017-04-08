@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Explain</title>
+    <link rel="stylesheet" type="text/css" href="etc/markdown.css" />
+</head>
+<body>
+<h1 id="explanationoftheprogram">Explanation of the program</h1>
+
+<p><em>for Assignment 1 - Bible Word Count<br/>
+    of course COMP4057 Distributed and Cloud Computing<br/>
+    by Poon Chun Yiu (15200256)</em></p>
+
+<p>9 April 2017</p>
+
+<h2 id="screenshots">Screenshots</h2>
+
+<ul>
+    <li>Output of the program running<br/><img src="etc/output.png" alt="" /></li>
+
+    <li>Input: first 20 lines of both <code>bible.txt</code> and <code>stopwords.txt</code><br/><img src="etc/input.png" alt="" /></li>
+
+    <li>Terminal history of <code>csr42</code> side<br/><img src="etc/cmds.png" alt="" /></li>
+</ul>
+
+<h2 id="explanationofmajorsteps">Explanation of major steps</h2>
+
+<ol start="1">
+    <li><code>Driver</code> contains the instructions for Hadoop to perform the job<strong><em>s</em></strong> accordingly.</li>
+
+    <li>First, the <code>Driver</code> will start the job for <code>Counter</code>.<br/></li>
+</ol>
+
+<pre><code>Job job1 = Job.getInstance(conf, "BibleMostUsedWords: Counter");
+
+FileInputFormat.addInputPath(job1, new Path(rArgs[0]));
+FileOutputFormat.setOutputPath(job1, new Path(rArgs[1]));
+
+job1.setJarByClass(Counter.class);
+
+job1.setMapOutputKeyClass(Text.class);
+job1.setMapOutputValueClass(IntWritable.class);
+
+job1.setOutputKeyClass(Text.class);
+job1.setOutputValueClass(IntWritable.class);
+
+job1.setMapperClass(Counter.CountMapper.class);
+job1.setReducerClass(Counter.CountReducer.class);
+
+if (!job1.waitForCompletion(true)) {
+    System.exit(1);
+    return;
+}
+</code></pre>
+
+<ol start="3">
+    <li><p><code>Counter</code> will first check if the Tab-Separated Values (but in <code>*.txt</code>) has exactly:</p>
+
+        <ul>
+            <li><code>1</code> column for stop words, and;</li>
+
+            <li><code>2</code> columns for the bible data</li></ul></li>
+
+    <li><p>...And to let all text, except non alphabetical characters (i.e. regex=<code>[^A-Za-z]</code>), with its lower case,
+        to be emitted by the mapper.</p></li>
+</ol>
+
+<pre><code>StringTokenizer st = new StringTokenizer(value.toString(), "\t"); // tab separated
+if (st.countTokens() == 2) {
+    // bible
+    st.nextToken(); // omit (1)
+    StringTokenizer stWords = new StringTokenizer(st.nextToken()); // space separated
+    while (stWords.hasMoreTokens()) {
+        String strWord = stWords.nextToken()
+                .replaceAll("[^A-Za-z']", "")
+                .toLowerCase()
+                .trim();
+        if (strWord.length() == 0) {
+            continue;
+        }
+        word.set(strWord);
+        context.write(word, positive);
+    }
+} else if (st.countTokens() == 1) {
+    // stopwords
+    String strWord = st.nextToken().toLowerCase();
+    word.set(strWord);
+    context.write(word, negative);
+}
+</code></pre>
+
+<ol start="5">
+    <li>Note that for words in <code>bible.txt</code> will emit value of <code>1</code>, and for words in file <code>stopwords.txt</code> emitting <code>-1</code>.<br/>
+        This is to flag all stop words not to be counted on reduce stage.</li>
+
+    <li>The reducer will sum up the existences (<code>1</code>) of words in bible. <br/>
+        When flag (<code>-1</code>) is found,
+        the reducer will skip the current word, which makes the word not to be shown on the (intermediate) output file.</li>
+</ol>
+
+<pre><code>int sum = 0;
+for (IntWritable val : values) {
+    if (val.get() &lt; 0) {
+        return;
+    }
+    sum += val.get();``````
+}
+result.set(sum);
+context.write(key, result);
+</code></pre>
+
+<ol start="7">
+    <li>The <code>Driver</code> will then execute another job to sort and trim the counts of words.<br/>
+        Note that the number of reduce task is set to <code>1</code>.</li>
+</ol>
+
+<pre><code>Job job2 = Job.getInstance(conf, "BibleMostUsedWords: First10");
+
+FileInputFormat.addInputPath(job2, new Path(rArgs[1]));
+FileOutputFormat.setOutputPath(job2, new Path(rArgs[2]));
+
+job2.setJarByClass(SwappedHead.class);
+
+job2.setNumReduceTasks(1);
+
+job2.setMapOutputKeyClass(IntWritable.class);
+job2.setMapOutputValueClass(Text.class);
+
+job2.setOutputKeyClass(Text.class);
+job2.setOutputValueClass(IntWritable.class);
+
+job2.setSortComparatorClass(SwappedHead.SHReverseComparator.class);
+
+job2.setMapperClass(SwappedHead.SHMapper.class);
+job2.setReducerClass(SwappedHead.SHReducer.class);
+
+System.exit(job2.waitForCompletion(true) ? 0 : 1);
+</code></pre>
+
+<ol start="8">
+    <li>The <code>SwappedHead</code> will invert the Key-Value pair and emit it.</li>
+</ol>
+
+<pre><code>StringTokenizer st = new StringTokenizer(value.toString());
+word.set(st.nextToken());
+number.set(Integer.valueOf(st.nextToken()));
+context.write(number, word);
+</code></pre>
+
+<ol start="9">
+    <li>We implement a new <em>reverse</em> <code>IntWritable</code> comparator to make the sorting produces a descending list.</li>
+</ol>
+
+<pre><code>@Override
+public int compare(byte[] b1, int s1, int l1, byte[] b2, int s2, int l2) {
+    return -1 * super.compare(b1, s1, l1, b2, s2, l2);
+}
+</code></pre>
+
+<ol start="10">
+    <li>The <code>SHReducer</code> is set to trim the remaining items not to be emitted after 10 emits.</li>
+</ol>
+
+<pre><code>private int i = 0;
+@Override
+protected void reduce(IntWritable value, Iterable&lt;Text&gt; keys, Context context) throws IOException, InterruptedException {
+    if (i &gt;= 10) {
+        return;
+    }
+    for (Text k: keys) {
+        if (i++ &gt;= 10) {
+            break;
+        }
+        context.write(k, value);
+    }
+}
+</code></pre>
+</body>
+</html>
